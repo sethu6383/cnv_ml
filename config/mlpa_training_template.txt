@@ -1,0 +1,298 @@
+sample_id		gene			copy_number		confidence
+GEN_T_2.0.spik_0863	SMN1-7			1.01			Normal
+			SMN1-8			0.93			Normal
+			SMN2-7			1.54			Hetro Dup
+			SMN2-8			1.4			Hetro Dup
+GEN_T_2.0.spik_0864	SMN1-7			0.96			Normal
+			SMN1-8			1.01			Normal
+			SMN2-7			0.57			Hetro Del
+			SMN2-8			0.57			Hetro Del
+GEN_T_2.0.spik_0754	SMN1-7			1.47			Hetro Dup
+			SMN1-8			1.43			Hetro Dup
+			SMN2-7			0.62			Hetro Del
+			SMN2-8			0.6			Hetro Del
+GEN_T_2.0.spik_0755	SMN1-7			1.03			Normal
+			SMN1-8			1.03			Normal
+			SMN2-7			0.61			Hetro Del
+			SMN2-8			0.6			Hetro Del
+GEN_T_2.0.spik_1371	SMN1-7			0.9			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			1.02			Normal
+			SMN2-8			0.99			Normal
+GEN_T_2.0.spik_1369	SMN1-7			0.86			Normal
+			SMN1-8			0.92			Normal
+			SMN2-7			0.98			Normal
+			SMN2-8			1			Normal
+GEN_T_2.0.spik_1241	SMN1-7			0.92			Normal
+			SMN1-8			0.91			Normal
+			SMN2-7			0.58			Hetro Del
+			SMN2-8			0.55			Hetro Del
+GEN_T_2.0.spik_1242	SMN1-7			0.98			Normal
+			SMN1-8			0.93			Normal
+			SMN2-7			1.1			Normal
+			SMN2-8			1.03			Normal
+GEN_T_2.0.spik_0739	SMN1-7			1			Normal
+			SMN1-8			0.98			Normal
+			SMN2-7			1.03			Normal
+			SMN2-8			1.02			Normal
+GEN_T_2.0.spik_0562	SMN1-7			1.01			Normal
+			SMN1-8			1.05			Normal
+			SMN2-7			1.11			Normal
+			SMN2-8			1.12			Normal
+GEN_T_2.0.spik_0884	SMN1-7			1.08			Normal
+			SMN1-8			1.45			Hetro Dup
+			SMN2-7			0.54			Hetro Del
+			SMN2-8			0.55			Hetro Del
+GEN_T_2.0.spik_1323	SMN1-7			0.96			Normal
+			SMN1-8			0.49			Hetro Del
+			SMN2-7			1.03			Normal
+			SMN2-8			1.45			Hetro Dup
+GEN_T_2.0.spik_0595	SMN1-7			1.08			Normal
+			SMN1-8			1.05			Normal
+			SMN2-7			1.05			Normal
+			SMN2-8			1.04			Normal
+GEN_T_2.0.spik_0596	SMN1-7			1.05			Normal
+			SMN1-8			1.03			Normal
+			SMN2-7			1.06			Normal
+			SMN2-8			1.03			Normal
+GEN_T_2.0.spik_0710	SMN1-7			1			Normal
+			SMN1-8			0.97			Normal
+			SMN2-7			0.96			Normal
+			SMN2-8			0.9			Normal
+MHAF95/GEN_T_2.0.spik_AF0777SMN1-7		0.84			Normal
+			SMN1-8			0.97			Normal
+			SMN2-7			1.54			Hetro Dup
+			SMN2-8			1.5			Hetro Dup
+GEN_T_2.0.spik_1143	SMN1-7			1.46			Hetro Dup
+			SMN1-8			1.76			hoomo dup
+			SMN2-7			1.1			Normal
+			SMN2-8			0.6			Hetro Del
+GEN_T_2.0.spik_1322	SMN1-7			1.01			Normal
+			SMN1-8			0.98			Normal
+			SMN2-7			0.58			Hetro Del
+			SMN2-8			0.56			Hetro Del
+GEN_T_2.0.spik_0593	SMN1-7			0.96			Normal
+			SMN1-8			1.04			Normal
+			SMN2-7			0.89			Normal
+			SMN2-8			0.96			Normal
+GEN_T_2.0.spik_1348	SMN1-7			0.93			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			0.58			Hetro Del
+			SMN2-8			0.56			Hetro Del
+GEN_T_2.0.spik_1034A	SMN1-7			0.94			Normal
+			SMN1-8			0.95			Normal
+			SMN2-7			1.06			Normal
+			SMN2-8			1.03			Normal
+GEN_T_2.0.spik_1349	SMN1-7			0.99			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			1.1			Normal
+			SMN2-8			1.01			Normal
+GEN_T_2.0.spik_0641	SMN1-7			1.4			Hetro Dup
+			SMN1-8			1.45			Hetro Dup
+			SMN2-7			0.57			Hetro Del
+			SMN2-8			0.64			Hetro Del
+GEN_T_2.0.spik_0806	SMN1-7			0.94			Normal
+			SMN1-8			0.99			Normal
+			SMN2-7			0			Homo Del
+			SMN2-8			5%			Homozygous deletion
+GEN_T_2.0.spik_0674	SMN1-7			0.96			Normal
+			SMN1-8			0.93			Normal
+			SMN2-7			1.39			Hetro Dup
+			SMN2-8			1.43			Hetro Dup
+GEN_T_2.0.spik_1219	SMN1-7			1			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			1.07			Normal
+			SMN2-8			1.04			Normal
+GEN_T_2.0.spik_1220	SMN1-7			0.94			Normal
+			SMN1-8			1.01			Normal
+			SMN2-7			0.54			Hetro Del
+			SMN2-8			0.59			Hetro Del
+GEN_T_2.0.spik_0563	SMN1-7			1.02			Normal
+			SMN1-8			1.05			Normal
+			SMN2-7			1.09			Normal
+			SMN2-8			1.07			Normal
+GEN_T_2.0.spik_1350	SMN1-7			0.98			Normal
+			SMN1-8			0.97			Normal
+			SMN2-7			1.08			Normal
+			SMN2-8			1.02			Normal
+GEN_T_2.0.spik_1273	SMN1-7			1			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			1.17			Normal
+			SMN2-8			1.15			Normal
+GEN_T_2.0.spik_1274	SMN1-7			0.97			Normal
+			SMN1-8			0.91			Normal
+			SMN2-7			1.09			Normal
+			SMN2-8			1.1			Normal
+GEN_T_2.0.spik_0977	SMN1-7			0.94			Normal
+			SMN1-8			1.02			Normal
+			SMN2-7			0			Homo Del
+			SMN2-8			4%			Homozygous deletion
+GEN_T_2.0.2_0484	SMN1-7			0.99			Normal
+			SMN1-8			1			Normal
+			SMN2-7			1.11			Normal
+			SMN2-8			1.07			Normal
+GEN_T_2.0.spik_1205	SMN1-7			1.38			Hetro Dup
+			SMN1-8			1.36			Hetro Dup
+			SMN2-7			0.58			Hetro Del
+			SMN2-8			0.61			Hetro Del
+GEN_T_2.0.spik_1011A	SMN1-7			0.86			Normal
+			SMN1-8			0.91			Normal
+			SMN2-7			0.53			Hetro Del
+			SMN2-8			0.57			Hetro Del
+GEN_T_2.0.spik_1418	SMN1-7			1.08			Normal
+			SMN1-8			0.98			Normal
+			SMN2-7			1.02			Normal
+			SMN2-8			0.98			Normal
+GEN_T_2.0.spik_1304	SMN1-7			0.91			Normal
+			SMN1-8			0.95			Normal
+			SMN2-7			1.01			Normal
+			SMN2-8			1.06			Normal
+GEN_T_2.0.spik_1354	SMN1-7			0.98			Normal
+			SMN1-8			1.02			Normal
+			SMN2-7			0.55			Hetro Del
+			SMN2-8			0.57			Hetro Del
+GEN_T_2.0.spik_0597	SMN1-7			1.07			Normal
+			SMN1-8			1.05			Normal
+			SMN2-7			1.05			Normal
+			SMN2-8			1.05			Normal
+GEN_T_2.0.spik_0767	SMN1-7			0.99			Normal
+			SMN1-8			0.99			Normal
+			SMN2-7			1.09			Normal
+			SMN2-8			1.01			Normal
+GEN_T_2.0.spik_0594	SMN1-7			1.04			Normal
+			SMN1-8			1			Normal
+			SMN2-7			1.11			Normal
+			SMN2-8			1.04			Normal
+GEN_T_2.0.spik_0596	SMN1-7			1.05			Normal
+			SMN1-8			1.03			Normal
+			SMN2-7			1.06			Normal
+			SMN2-8			1.03			Normal
+GEN_T_2.0.spik_1454	SMN1-7			0.97			Normal
+			SMN1-8			0.98			Normal
+			SMN2-7			1.17			Normal
+			SMN2-8			1.06			Normal
+GEN_T_2.0.spik_1455	SMN1-7			0.95			Normal
+			SMN1-8			0.92			Normal
+			SMN2-7			1.15			Normal
+			SMN2-8			1.05			Normal
+GEN_T_2.0.spik_1417	SMN1-7			0.93			Normal
+			SMN1-8			0.99			Normal
+			SMN2-7			1.53			Hetro Del
+			SMN2-8			1.53			Hetro Del
+GEN_T_2.0.spik_1243	SMN1-7			0.99			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			1.11			Normal
+			SMN2-8			1.06			Normal
+GEN_T_2.0.spik_0598	SMN1-7			0.75			Normal
+			SMN1-8			0.79			Normal
+			SMN2-7			0.34			Hetro Del
+			SMN2-8			0.32			Hetro Del
+GEN_T_2.0.spik_0978	SMN1-7			0.63			Hetro Del
+			SMN1-8			0.94			Normal
+			SMN2-7			0.36			Hetro Del
+			SMN2-8			0.47			Hetro Del
+GEN_T_2.0.spik_1240	SMN1-7			0.92			Normal
+			SMN1-8			0.93			Normal
+			SMN2-7			1.1			Normal
+			SMN2-8			1			Normal
+GEN_T_2.0.spik_1370	SMN1-7			1.36			Hetro Dup
+			SMN1-8			1.37			Hetro Dup
+			SMN2-7			0.56			Hetro Del
+			SMN2-8			0.57			Hetro Del
+GEN_T_2.0.spik_1033A	SMN1-7			1.02			Normal
+			SMN1-8			0.98			Normal
+			SMN2-7			0.58			Hetro Del
+			SMN2-8			0.57			Hetro Del
+GEN_T_2.0.spik_0768	SMN1-7			0.95			Normal
+			SMN1-8			0.98			Normal
+			SMN2-7			1.05			Normal
+			SMN2-8			1.04			Normal
+GEN_T_2.0.spik_1142	SMN1-7			0.95			Normal
+			SMN1-8			0.96			Normal
+			SMN2-7			1.13			Normal
+			SMN2-8			1.11			Normal
+GEN_T_2.0.2_0112	SMN1-7			1.05			Normal
+			SMN1-8			0.94			Normal
+			SMN2-7			1.03			Normal
+			SMN2-8			1.03			Normal
+GEN_AGI_V8_0151		SMN1-7			0.95			Normal
+			SMN1-8			0.92			Normal
+			SMN2-7			1.05			Normal
+			SMN2-8			1.01			Normal
+GEN_T_2.0.2_0188	SMN1-7			1.48			Hetro Dup
+			SMN1-8			1.43			Hetro Dup
+			SMN2-7			0.56			Hetro Del
+			SMN2-8			0.6			Hetro Del
+GEN_T_2.0.2_0087	SMN1-7			1.91			Homo Dup
+			SMN1-8			1.87			Homo Dup
+			SMN2-7			0			Homo Del
+			SMN2-8			6			Homo Dup
+GEN_T_2.0.2_0117	SMN1-7			1.06			Normal
+			SMN1-8			1.05			Normal
+			SMN2-7			0			Homo Del
+			SMN2-8			5			Homo Del
+GEN_T_2.0.2_0111	SMN1-7			1.08			Normal
+			SMN1-8			0.97			Normal
+			SMN2-7			1.06			Normal
+			SMN2-8			0.99			Normal
+GEN_T_2.0.2_0067	SMN1-7			1.03			Normal
+			SMN1-8			1.06			Normal
+			SMN2-7			0.5			Hetro Del
+			SMN2-8			0.53			Hetro Del
+GEN_T_2.0.2_0229	SMN1-7			1.56			Hetro Dup
+			SMN1-8			1.47			Hetro Dup
+			SMN2-7			0.59			Hetro Del
+			SMN2-8			0.59			Hetro Del
+GEN_T_2.0.2_0287	SMN1-7			1.03			Normal
+			SMN1-8			1.09			Normal
+			SMN2-7			1.01			Normal
+			SMN2-8			0.57			Hetro Del
+GEN_T_2.0.2_0225/GEN_T_2.0.2_0225ASMN1-7	1.22			Uncertain
+			SMN1-8			1.29			Uncertain
+			SMN2-7			0.48			Hetro Del
+			SMN2-8			0.53			Hetro Del
+GEN_T_2.0.2_0057	SMN1-7			1.09			Normal
+			SMN1-8			1			Normal
+			SMN2-7			1.06			Normal
+			SMN2-8			0.96			Normal
+GEN_T_2.0.2_0189	SMN1-7			1.06			Normal
+			SMN1-8			1.4			Hetro Dup
+			SMN2-7			1.1			Normal
+			SMN2-8			0.6			Hetro Del
+GEN_T_2.0.2_0214	SMN1-7			0.96			Normal
+			SMN1-8			1.21			Normal
+			SMN2-7			0.99			Normal
+			SMN2-8			0.55			Hetro Del
+GEN_AGI_V8_0150		SMN1-7			1.46			Hetro Dup
+			SMN1-8			1.42			Hetro Dup
+			SMN2-7			0.56			Hetro Del
+			SMN2-8			0.6			Hetro Del
+GEN_T_2.0.2_0086	SMN1-7			1.08			Normal
+			SMN1-8			0.99			Normal
+			SMN2-7			1.06			Normal
+			SMN2-8			1.03			Normal
+GEN_T_2.0.2_0056	SMN1-7			0.07			Uncertain
+			SMN1-8			0.05			Uncertain
+			SMN2-7			0.09			Uncertain
+			SMN2-8			0.05			Uncertain
+GEN_T_2.0.2_0344	SMN1-7			0.84			Normal
+			SMN1-8			0.94			Normal
+			SMN2-7			0.91			Normal
+			SMN2-8			0.98			Normal
+GEN_T_2.0.2_0328	SMN1-7			0.96			Normal
+			SMN1-8			1.01			Normal
+			SMN2-7			0.93			Normal
+			SMN2-8			0.99			Normal
+GEN_T_2.0.2_0371	SMN1-7			1.05			Normal
+			SMN1-8			1.5			Hetro Dup
+			SMN2-7			0.74			Normal
+			SMN2-8			0.98			Normal
+GEN_T_2.0.2_0372	SMN1-7			0.89			Normal
+			SMN1-8			1.01			Normal
+			SMN2-7			0.42			Hetro Del
+			SMN2-8			0.54			Hetro Del
+GEN_T_2.0.2_0313	SMN1-7			1.06			Normal
+			SMN1-8			0.99			Normal
+			SMN2-7			0.58			Hetro Del
+			SMN2-8			0.56			Hetro Del
+
