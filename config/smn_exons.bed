@@ -1,3 +1,5 @@
+# SMN1/SMN2 Critical Exons for SMA Analysis (GRCh38)
+# Focus on exons 7 and 8 - essential for SMA diagnosis
 chr5	70946066	70946176	SMN1_exon7	.	+
 chr5	70951941	70951994	SMN1_exon8	.	+
 chr5	70070641	70070751	SMN2_exon7	.	+
