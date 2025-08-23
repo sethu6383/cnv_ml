@@ -1,486 +1,668 @@
 #!/bin/bash
 
-# run_pipeline.sh - Master script for SMN CNV detection pipeline
-# Usage: ./run_pipeline.sh <input_bam_dir> [--config config_dir] [--results results_dir] [--sample-type TYPE] [--skip-plots]
+# run_smn_pipeline_optimized.sh - Optimized SMN CNV Detection Pipeline
+# Focus on SMN1/SMN2 exons 7&8 with MLPA-driven adaptive thresholding
+# Usage: ./run_smn_pipeline_optimized.sh <bam_dir> [OPTIONS]
 
 set -euo pipefail
 
-# Default paths
+# Pipeline version and metadata
+PIPELINE_VERSION="2.0-SMA-OPTIMIZED"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_DIR="$(dirname "$SCRIPT_DIR")"
-CONFIG_DIR="/data/SMN/cnv_pipeline/config"
-RESULTS_DIR="$PIPELINE_DIR/data/SMN/results_CNV"
-BIN_DIR="/data/SMN/cnv_pipeline/bin"
-LOG_DIR="$PIPELINE_DIR/logs"
 
-# Default configuration files
-BED_FILE="/data/SMN/cnv_pipeline/config/smn_exons.bed"
-SNP_FILE="/data/SMN/cnv_pipeline/config/discriminating_snps.txt"
+# Default configuration
+DEFAULT_CONFIG_DIR="$PIPELINE_DIR/config"
+DEFAULT_RESULTS_DIR="$PIPELINE_DIR/results_optimized"
+DEFAULT_BIN_DIR="$PIPELINE_DIR/bin"
+BED_FILE="$DEFAULT_CONFIG_DIR/smn_exons_critical.bed"  # Updated for exons 7&8 only
+SNP_FILE="$DEFAULT_CONFIG_DIR/discriminating_snps.txt"
+MLPA_TRAINING_FILE="$DEFAULT_CONFIG_DIR/mlpa_training_template.txt"
 
-
-# Pipeline options
+# Pipeline parameters
+INPUT_BAM_DIR=""
+CONFIG_DIR="$DEFAULT_CONFIG_DIR"
+RESULTS_DIR="$DEFAULT_RESULTS_DIR"
+BIN_DIR="$DEFAULT_BIN_DIR"
+SAMPLE_TYPE="auto"
 SKIP_PLOTS=false
 VERBOSE=false
-SAMPLE_TYPE="auto"
-INPUT_BAM_DIR="/data/SMN/BAM"
+FORCE_THRESHOLD_RETRAIN=false
+POPULATION_UPDATE=false
 
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    local color=$1
-    local message=$2
-    echo -e "${color}[$(date '+%Y-%m-%d %H:%M:%S')] ${message}${NC}"
+# Logging functions
+log_header() {
+    echo -e "${PURPLE}[$(date '+%Y-%m-%d %H:%M:%S')] ========================================${NC}"
+    echo -e "${PURPLE}[$(date '+%Y-%m-%d %H:%M:%S')] $1${NC}"
+    echo -e "${PURPLE}[$(date '+%Y-%m-%d %H:%M:%S')] ========================================${NC}"
 }
 
-print_error() {
-    print_status "$RED" "ERROR: $1"
+log_info() {
+    echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
 }
 
-print_warning() {
-    print_status "$YELLOW" "WARNING: $1"
+log_success() {
+    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] SUCCESS: $1${NC}"
 }
 
-print_info() {
-    print_status "$BLUE" "INFO: $1"
+log_warning() {
+    echo -e "${YELLOW}[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
 }
 
-print_success() {
-    print_status "$GREEN" "SUCCESS: $1"
+log_error() {
+    echo -e "${RED}[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}"
 }
 
-# Function to check if required tools are available
-check_dependencies() {
-    print_info "Checking dependencies..."
+log_step() {
+    echo -e "${CYAN}[$(date '+%Y-%m-%d %H:%M:%S')] STEP: $1${NC}"
+}
+
+# Show usage information
+show_usage() {
+    cat << EOF
+SMN CNV Detection Pipeline v${PIPELINE_VERSION}
+Optimized for SMA (Spinal Muscular Atrophy) Detection
+
+DESCRIPTION:
+    This pipeline performs targeted CNV analysis of SMN1/SMN2 exons 7 and 8,
+    the critical loci for SMA diagnosis and carrier screening. Features:
+    
+    • Adaptive MLPA-trained thresholds with continuous learning
+    • Population-based clinical evidence integration
+    • Fallback analysis for samples with insufficient primary coverage
+    • Comprehensive SMA-specific clinical interpretation
+    • Evidence-rich reporting with population frequencies
+
+USAGE:
+    $0 <bam_directory> [OPTIONS]
+
+REQUIRED:
+    bam_directory           Directory containing indexed BAM files
+
+OPTIONS:
+    --config DIR            Configuration directory (default: $DEFAULT_CONFIG_DIR)
+    --results DIR           Results output directory (default: $DEFAULT_RESULTS_DIR)
+    --mlpa-file FILE        MLPA training dataset (default: config/mlpa_training_template.txt)
+    --sample-type TYPE      Sample type: reference|test|auto (default: auto)
+    --retrain-thresholds    Force threshold retraining even if recent version exists
+    --update-population     Update population evidence cache (weekly recommended)
+    --skip-plots            Skip visualization generation for faster processing
+    --verbose               Enable detailed logging
+    --help                  Show this help message
+
+SAMPLE TYPE AUTO-DETECTION:
+    • Files containing 'ref', 'control', 'normal' → reference samples
+    • All other files → test samples
+    • Minimum 3 reference samples recommended for reliable normalization
+
+KEY FEATURES:
+    🧬 SMN1/SMN2 Exons 7&8 Focus: Critical loci for SMA diagnosis
+    📊 MLPA-Driven Thresholds: Adaptive learning from gold-standard data
+    🌍 Population Evidence: ClinVar, gnomAD, literature integration
+    🔄 Fallback Analysis: Maintains interpretability with low coverage
+    📋 Clinical Reports: SMA-specific interpretation with evidence context
+    ⚡ Continuous Learning: Threshold optimization with each run
+
+EXAMPLES:
+    # Basic analysis with auto-detection
+    $0 /data/sma_cohort/bams/
+    
+    # Reference cohort analysis with threshold retraining
+    $0 /data/reference_samples/ --sample-type reference --retrain-thresholds
+    
+    # Clinical samples with population evidence update
+    $0 /data/patient_samples/ --update-population --results /clinical/reports/
+    
+    # Fast screening mode
+    $0 /data/screening_cohort/ --skip-plots --sample-type test
+
+OUTPUT STRUCTURE:
+    results_optimized/
+    ├── thresholds/                 # Adaptive threshold versions with metadata
+    ├── population_cache/           # Cached population evidence (ClinVar, etc.)
+    ├── depth/                      # SMN exon depth extraction results
+    ├── normalized/                 # Z-scores with MLPA-optimized thresholds
+    ├── cnv_calls/                  # Copy number estimates with confidence
+    ├── reports/                    # Per-sample TXT/HTML reports
+    │   ├── SAMPLE_ID/
+    │   │   ├── SAMPLE_ID_report.txt      # Detailed text report
+    │   │   ├── SAMPLE_ID_report.html     # Rich HTML report with evidence
+    │   │   └── SAMPLE_ID_data.json       # Structured analysis data
+    ├── batch_summary_TIMESTAMP.tsv       # Consolidated batch results
+    ├── batch_summary_TIMESTAMP.html      # Interactive batch dashboard
+    └── logs/                       # Detailed execution logs
+
+CLINICAL INTERPRETATION LEVELS:
+    • AFFECTED: SMN1 homozygous deletion (likely SMA)
+    • CARRIER: SMN1 heterozygous deletion (SMA carrier)
+    • NORMAL: Standard SMN1/SMN2 copy numbers
+    • UNCERTAIN: Atypical patterns requiring confirmation
+
+QUALITY CONTROL:
+    • PASS: Adequate coverage across all critical exons
+    • WARNING: Some quality concerns, results interpretable
+    • FAIL: Poor quality, confirmatory testing essential
+
+For support and documentation: https://github.com/your-org/smn-cnv-pipeline
+EOF
+}
+
+# Validate dependencies and configuration
+validate_environment() {
+    log_step "Validating environment and dependencies"
     
     local missing_tools=()
     
-    # Check required command-line tools
+    # Check required tools
     for tool in samtools python3; do
         if ! command -v "$tool" &> /dev/null; then
             missing_tools+=("$tool")
         fi
     done
     
-    # Check Python packages
-    if ! python3 -c "import pandas, numpy, matplotlib, seaborn, scipy" &> /dev/null; then
-        print_warning "Some Python packages may be missing. Required: pandas, numpy, matplotlib, seaborn, scipy"
-    fi
-    
     if [ ${#missing_tools[@]} -ne 0 ]; then
-        print_error "Missing required tools: ${missing_tools[*]}"
+        log_error "Missing required tools: ${missing_tools[*]}"
         exit 1
     fi
     
-    print_success "All dependencies found"
-}
-
-# Function to validate configuration files and input
-validate_config() {
-    print_info "Validating configuration files and input..."
-    
-    # Check if configuration files exist
-    for file in "$BED_FILE" "$SNP_FILE"; do
-        if [ ! -f "$file" ]; then
-            print_error "Configuration file not found: $file"
-            exit 1
-        fi
-    done
-    
-    # Validate BED file
-    if ! grep -q "SMN1_exon" "$BED_FILE" || ! grep -q "SMN2_exon" "$BED_FILE"; then
-        print_error "BED file does not contain expected SMN1/SMN2 exon entries"
+    # Check Python packages
+    log_info "Checking Python environment..."
+    python3 -c "
+import sys
+required_packages = ['pandas', 'numpy', 'matplotlib', 'seaborn', 'scipy', 'sklearn']
+missing = []
+for pkg in required_packages:
+    try:
+        __import__(pkg)
+    except ImportError:
+        missing.append(pkg)
+if missing:
+    print(f'Missing Python packages: {missing}')
+    sys.exit(1)
+print('All required Python packages found')
+" || {
+        log_error "Python package validation failed"
+        echo "Install missing packages: pip install pandas numpy matplotlib seaborn scipy scikit-learn"
         exit 1
+    }
+    
+    # Validate configuration files
+    if [ ! -f "$BED_FILE" ]; then
+        log_error "BED file not found: $BED_FILE"
+        exit 1
+    fi
+    
+    if [ ! -f "$SNP_FILE" ]; then
+        log_error "SNP configuration file not found: $SNP_FILE"
+        exit 1
+    fi
+    
+    # Create critical exons BED file if it doesn't exist
+    if [ ! -f "$BED_FILE" ]; then
+        log_info "Creating optimized BED file for SMN exons 7&8..."
+        mkdir -p "$(dirname "$BED_FILE")"
+        cat > "$BED_FILE" << 'EOF'
+# SMN1/SMN2 Critical Exons for SMA Analysis (GRCh38)
+# Focus on exons 7 and 8 - essential for SMA diagnosis
+chr5	70946066	70946176	SMN1_exon7	.	+
+chr5	70951941	70951994	SMN1_exon8	.	+
+chr5	70070641	70070751	SMN2_exon7	.	+
+chr5	70076521	70076574	SMN2_exon8	.	+
+EOF
     fi
     
     # Validate input BAM directory
     if [ ! -d "$INPUT_BAM_DIR" ]; then
-        print_error "Input BAM directory not found: $INPUT_BAM_DIR"
+        log_error "Input BAM directory not found: $INPUT_BAM_DIR"
         exit 1
     fi
     
-    # Check for BAM files
     local bam_count=$(find "$INPUT_BAM_DIR" -name "*.bam" | wc -l)
     if [ "$bam_count" -eq 0 ]; then
-        print_error "No BAM files found in directory: $INPUT_BAM_DIR"
+        log_error "No BAM files found in directory: $INPUT_BAM_DIR"
         exit 1
     fi
     
-    print_success "Configuration validated ($bam_count BAM files found)"
+    log_success "Environment validation passed ($bam_count BAM files found)"
 }
 
-# Function to create output directories
-setup_directories() {
-    print_info "Setting up output directories..."
+# Setup output directories and initialize components
+initialize_pipeline() {
+    log_step "Initializing pipeline directories and components"
     
-    mkdir -p "$RESULTS_DIR"/{depth,allele_counts,normalized,cnv_calls,reports}
-    mkdir -p "$LOG_DIR"
+    # Create directory structure
+    mkdir -p "$RESULTS_DIR"/{depth,normalized,cnv_calls,reports,logs}
+    mkdir -p "$RESULTS_DIR"/{thresholds,population_cache,plots}
     
-    print_success "Output directories created"
-}
-
-# Function to run depth extraction
-run_depth_extraction() {
-    print_info "Step 1: Extracting read depth per exon..."
+    # Initialize logging
+    export PIPELINE_LOG_DIR="$RESULTS_DIR/logs"
+    export PIPELINE_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
     
-    local output_dir="$RESULTS_DIR/depth"
-    local log_file="$LOG_DIR/depth_extraction.log"
+    log_info "Results directory: $RESULTS_DIR"
+    log_info "Pipeline timestamp: $PIPELINE_TIMESTAMP"
     
-    if ! bash "$BIN_DIR/extract_depth.sh" "$INPUT_BAM_DIR" "$BED_FILE" "$output_dir" "$SAMPLE_TYPE" 2>&1 | tee "$log_file"; then
-        print_error "Depth extraction failed. Check log: $log_file"
-        exit 1
+    # Update population evidence if requested
+    if [ "$POPULATION_UPDATE" = true ]; then
+        log_info "Updating population evidence cache..."
+        python3 "$BIN_DIR/update_population_evidence.py" \
+            --cache-dir "$RESULTS_DIR/population_cache" \
+            --force-update 2>&1 | tee "$PIPELINE_LOG_DIR/population_update.log"
     fi
     
-    # Check if depth files were created
-    local depth_files=$(find "$output_dir" -name "*_depth.txt" | wc -l)
+    log_success "Pipeline initialization complete"
+}
+
+# Extract read depth for SMN critical exons
+extract_smn_depth() {
+    log_step "Extracting read depth for SMN critical exons 7&8"
+    
+    local depth_dir="$RESULTS_DIR/depth"
+    local log_file="$PIPELINE_LOG_DIR/depth_extraction.log"
+    
+    # Use optimized depth extraction focusing on critical exons
+    python3 "$BIN_DIR/smn_depth_extractor.py" \
+        --bam-dir "$INPUT_BAM_DIR" \
+        --bed-file "$BED_FILE" \
+        --output-dir "$depth_dir" \
+        --sample-type "$SAMPLE_TYPE" \
+        --enable-fallback \
+        --min-depth 10 \
+        --min-mapq 20 \
+        --min-baseq 20 \
+        2>&1 | tee "$log_file"
+    
+    # Verify output
+    local depth_files=$(find "$depth_dir" -name "*_depth_results.json" | wc -l)
     if [ "$depth_files" -eq 0 ]; then
-        print_error "No depth files were created"
+        log_error "No depth files were created"
         exit 1
     fi
     
-    print_success "Depth extraction completed ($depth_files files created)"
+    log_success "Depth extraction completed ($depth_files samples processed)"
 }
 
-# Function to calculate coverage
-run_coverage_calculation() {
-    print_info "Step 2: Calculating average coverage per exon..."
+# Normalize coverage with MLPA-optimized thresholds
+normalize_coverage_mlpa() {
+    log_step "Normalizing coverage with MLPA-optimized thresholds"
     
-    local input_dir="$RESULTS_DIR/depth"
-    local output_file="$RESULTS_DIR/depth/coverage_summary.txt"
-    local log_file="$LOG_DIR/coverage_calculation.log"
+    local log_file="$PIPELINE_LOG_DIR/normalization.log"
     
-    if ! python3 "$BIN_DIR/calculate_coverage.py" "$input_dir" "$BED_FILE" "$output_file" 2>&1 | tee "$log_file"; then
-        print_error "Coverage calculation failed. Check log: $log_file"
+    # Load or initialize MLPA threshold manager
+    local threshold_args=""
+    if [ -f "$MLPA_TRAINING_FILE" ]; then
+        threshold_args="--mlpa-file $MLPA_TRAINING_FILE"
+    fi
+    
+    if [ "$FORCE_THRESHOLD_RETRAIN" = true ]; then
+        threshold_args="$threshold_args --force-retrain"
+    fi
+    
+    python3 "$BIN_DIR/mlpa_threshold_normalizer.py" \
+        --depth-dir "$RESULTS_DIR/depth" \
+        --output-dir "$RESULTS_DIR/normalized" \
+        --threshold-dir "$RESULTS_DIR/thresholds" \
+        $threshold_args \
+        --population-cache "$RESULTS_DIR/population_cache" \
+        2>&1 | tee "$log_file"
+    
+    # Verify normalization output
+    if [ ! -f "$RESULTS_DIR/normalized/z_scores_optimized.txt" ]; then
+        log_error "Normalization failed - Z-scores file not created"
         exit 1
     fi
     
-    if [ ! -f "$output_file" ]; then
-        print_error "Coverage summary file was not created"
-        exit 1
-    fi
-    
-    print_success "Coverage calculation completed"
+    log_success "Coverage normalization completed with MLPA-optimized thresholds"
 }
 
-# Function to perform allele counting
-run_allele_counting() {
-    print_info "Step 3: Performing allele-specific counting..."
+# Estimate copy numbers with adaptive thresholds
+estimate_copy_numbers() {
+    log_step "Estimating copy numbers with adaptive thresholds"
     
-    local output_dir="$RESULTS_DIR/allele_counts"
-    local log_file="$LOG_DIR/allele_counting.log"
+    local log_file="$PIPELINE_LOG_DIR/copy_number_estimation.log"
     
-    local cmd="python3 $BIN_DIR/allele_count.py $INPUT_BAM_DIR $SNP_FILE $output_dir"
-    if [ "$SAMPLE_TYPE" != "auto" ]; then
-        cmd="$cmd --sample-type $SAMPLE_TYPE"
+    local plot_args=""
+    if [ "$SKIP_PLOTS" = false ]; then
+        plot_args="--generate-plots"
     fi
     
-    if ! eval "$cmd" 2>&1 | tee "$log_file"; then
-        print_error "Allele counting failed. Check log: $log_file"
+    python3 "$BIN_DIR/adaptive_copy_number_caller.py" \
+        --z-scores "$RESULTS_DIR/normalized/z_scores_optimized.txt" \
+        --threshold-dir "$RESULTS_DIR/thresholds" \
+        --output-dir "$RESULTS_DIR/cnv_calls" \
+        --focus-exons SMN1_exon7,SMN1_exon8,SMN2_exon7,SMN2_exon8 \
+        $plot_args \
+        --sma-specific \
+        2>&1 | tee "$log_file"
+    
+    # Verify copy number calling output
+    if [ ! -f "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" ]; then
+        log_error "Copy number estimation failed"
         exit 1
     fi
     
-    local allele_file="$output_dir/allele_counts.txt"
-    if [ ! -f "$allele_file" ]; then
-        print_error "Allele counts file was not created"
-        exit 1
-    fi
-    
-    print_success "Allele counting completed"
+    log_success "Copy number estimation completed"
 }
 
-# Function to normalize coverage
-run_normalization() {
-    print_info "Step 4: Normalizing coverage and calculating Z-scores..."
+# Generate comprehensive reports with population evidence
+generate_enhanced_reports() {
+    log_step "Generating enhanced reports with population evidence"
     
-    local coverage_file="$RESULTS_DIR/depth/coverage_summary.txt"
-    local sample_info_file="$RESULTS_DIR/allele_counts/sample_info.txt"
-    local output_file="$RESULTS_DIR/normalized/z_scores.txt"
-    local log_file="$LOG_DIR/normalization.log"
+    local log_file="$PIPELINE_LOG_DIR/report_generation.log"
     
-    if ! python3 "$BIN_DIR/normalize_coverage.py" "$coverage_file" "$sample_info_file" "$output_file" 2>&1 | tee "$log_file"; then
-        print_error "Coverage normalization failed. Check log: $log_file"
-        exit 1
-    fi
+    python3 "$BIN_DIR/enhanced_smn_reporter.py" \
+        --cnv-results "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" \
+        --depth-results "$RESULTS_DIR/depth" \
+        --population-cache "$RESULTS_DIR/population_cache" \
+        --threshold-history "$RESULTS_DIR/thresholds" \
+        --output-dir "$RESULTS_DIR/reports" \
+        --format all \
+        --include-population-evidence \
+        --sma-clinical-context \
+        2>&1 | tee "$log_file"
     
-    if [ ! -f "$output_file" ]; then
-        print_error "Z-scores file was not created"
-        exit 1
-    fi
+    # Generate batch summary
+    python3 "$BIN_DIR/batch_summary_generator.py" \
+        --reports-dir "$RESULTS_DIR/reports" \
+        --output-dir "$RESULTS_DIR" \
+        --include-mlpa-concordance \
+        --threshold-performance-analysis \
+        2>&1 | tee -a "$log_file"
     
-    print_success "Coverage normalization completed"
+    # Count generated reports
+    local report_count=$(find "$RESULTS_DIR/reports" -name "*_report.html" | wc -l)
+    local batch_reports=$(find "$RESULTS_DIR" -name "batch_summary_*.html" | wc -l)
+    
+    log_success "Report generation completed ($report_count individual + $batch_reports batch reports)"
 }
 
-# Function to estimate copy numbers
-run_copy_number_estimation() {
-    print_info "Step 5: Estimating copy numbers..."
+# Validate and assess pipeline results
+validate_results() {
+    log_step "Validating pipeline results and performing quality assessment"
     
-    local z_scores_file="$RESULTS_DIR/normalized/z_scores.txt"
-    local output_file="$RESULTS_DIR/cnv_calls/copy_numbers.txt"
-    local log_file="$LOG_DIR/copy_number_estimation.log"
+    local validation_log="$PIPELINE_LOG_DIR/validation.log"
     
-    local cmd="python3 $BIN_DIR/estimate_copy_number.py $z_scores_file $output_file"
-    if [ "$SKIP_PLOTS" = true ]; then
-        cmd="$cmd --no-plots"
+    python3 "$BIN_DIR/pipeline_validator.py" \
+        --results-dir "$RESULTS_DIR" \
+        --expected-samples $(find "$INPUT_BAM_DIR" -name "*.bam" | wc -l) \
+        --critical-exons SMN1_exon7,SMN1_exon8,SMN2_exon7,SMN2_exon8 \
+        --output-log "$validation_log" \
+        2>&1 | tee "$validation_log"
+    
+    # Check for critical findings that need immediate attention
+    local affected_samples=$(grep -c "AFFECTED" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
+    local carrier_samples=$(grep -c "CARRIER" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
+    local failed_samples=$(grep -c "FAIL" "$RESULTS_DIR/reports"/*/*.txt 2>/dev/null || echo "0")
+    
+    if [ "$affected_samples" -gt 0 ]; then
+        log_warning "CRITICAL: $affected_samples samples with potential SMA-affected status detected"
     fi
     
-    if ! eval "$cmd" 2>&1 | tee "$log_file"; then
-        print_error "Copy number estimation failed. Check log: $log_file"
-        exit 1
+    if [ "$carrier_samples" -gt 0 ]; then
+        log_info "$carrier_samples SMA carrier samples detected"
     fi
     
-    if [ ! -f "$output_file" ]; then
-        print_error "Copy numbers file was not created"
-        exit 1
+    if [ "$failed_samples" -gt 0 ]; then
+        log_warning "$failed_samples samples failed quality control"
     fi
     
-    print_success "Copy number estimation completed"
+    log_success "Results validation completed"
 }
 
-# Function to generate reports
-run_report_generation() {
-    print_info "Step 6: Generating per-sample reports..."
+# Generate final pipeline summary
+create_pipeline_summary() {
+    log_step "Creating comprehensive pipeline summary"
     
-    local cn_file="$RESULTS_DIR/cnv_calls/copy_numbers.txt"
-    local allele_file="$RESULTS_DIR/allele_counts/allele_counts.txt"
-    local output_dir="$RESULTS_DIR/reports"
-    local log_file="$LOG_DIR/report_generation.log"
+    local summary_file="$RESULTS_DIR/PIPELINE_SUMMARY_${PIPELINE_TIMESTAMP}.txt"
+    local start_time_file="$RESULTS_DIR/.pipeline_start_time"
     
-    local cmd="python3 $BIN_DIR/generate_report.py $cn_file $allele_file $output_dir"
-    if [ "$SKIP_PLOTS" = true ]; then
-        cmd="$cmd --format html"
+    local runtime="Unknown"
+    if [ -f "$start_time_file" ]; then
+        local start_time=$(cat "$start_time_file")
+        local end_time=$(date +%s)
+        runtime="$((end_time - start_time)) seconds"
     fi
-    
-    if ! eval "$cmd" 2>&1 | tee "$log_file"; then
-        print_error "Report generation failed. Check log: $log_file"
-        exit 1
-    fi
-    
-    local report_count=$(find "$output_dir" -name "*_report.html" | wc -l)
-    print_success "Report generation completed ($report_count reports created)"
-}
-
-# Function to create pipeline summary
-create_summary() {
-    print_info "Creating pipeline summary..."
-    
-    local summary_file="$RESULTS_DIR/pipeline_summary.txt"
-    local sample_count=$(find "$INPUT_BAM_DIR" -name "*.bam" | wc -l)
     
     cat > "$summary_file" << EOF
 SMN CNV Detection Pipeline Summary
 ==================================
+Pipeline Version: ${PIPELINE_VERSION}
+Analysis Timestamp: $(date '+%Y-%m-%d %H:%M:%S')
+Runtime: $runtime
 
-Pipeline Run Information:
-- Date: $(date)
-- Pipeline Directory: $PIPELINE_DIR
-- Configuration Directory: $CONFIG_DIR
-- Results Directory: $RESULTS_DIR
-- Input BAM Directory: $INPUT_BAM_DIR
+INPUT CONFIGURATION
+===================
+BAM Directory: $INPUT_BAM_DIR
+Configuration: $CONFIG_DIR
+Results Directory: $RESULTS_DIR
+Sample Type: $SAMPLE_TYPE
+MLPA Training: $([ -f "$MLPA_TRAINING_FILE" ] && echo "Available" || echo "Not available")
 
-Configuration Files:
-- BED File: $BED_FILE
-- SNP Configuration: $SNP_FILE
+ANALYSIS FOCUS
+==============
+Target Regions: SMN1/SMN2 exons 7 and 8 (critical SMA loci)
+Normalization: MLPA-trained adaptive thresholds
+Copy Number Calling: Population-validated with evidence integration
+Clinical Context: SMA-specific interpretation with literature support
 
-Sample Information:
-- Total BAM Files: $sample_count
-- Sample Type: $SAMPLE_TYPE
+SAMPLE PROCESSING
+=================
+Total BAM Files: $(find "$INPUT_BAM_DIR" -name "*.bam" | wc -l)
+Successfully Processed: $(find "$RESULTS_DIR/reports" -name "*_report.html" | wc -l)
+Failed Quality Control: $(grep -c "FAIL" "$RESULTS_DIR/reports"/*/*.txt 2>/dev/null || echo "0")
 
-Output Files:
-- Depth Files: $RESULTS_DIR/depth/
-- Coverage Summary: $RESULTS_DIR/depth/coverage_summary.txt
-- Allele Counts: $RESULTS_DIR/allele_counts/allele_counts.txt
-- Z-scores: $RESULTS_DIR/normalized/z_scores.txt
-- Copy Numbers: $RESULTS_DIR/cnv_calls/copy_numbers.txt
-- Reports: $RESULTS_DIR/reports/
+CLINICAL FINDINGS
+=================
+Potential SMA Affected: $(grep -c "AFFECTED" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
+SMA Carriers: $(grep -c "CARRIER" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
+Normal Results: $(grep -c "NORMAL" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
+Uncertain/Atypical: $(grep -c "UNCERTAIN" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
 
-Log Files:
-- All logs: $LOG_DIR/
+THRESHOLD OPTIMIZATION
+======================
+$(if [ -f "$RESULTS_DIR/thresholds/threshold_performance.json" ]; then
+    python3 -c "
+import json
+with open('$RESULTS_DIR/thresholds/threshold_performance.json') as f:
+    perf = json.load(f)
+    print(f\"Current Threshold Version: {perf.get('version', 'N/A')}\")
+    print(f\"MLPA Concordance: {perf.get('mlpa_concordance', {}).get('overall', 'N/A')}\")
+    print(f\"Matthews Correlation: {perf.get('mcc', 'N/A')}\")
+    print(f\"Training Samples: {perf.get('training_samples', 'N/A')}\")
+"
+else
+    echo "Threshold performance data not available"
+fi)
 
-Notes:
-- Z-score thresholds: ≤-2.5 (CN=0), -2.5 to -1.5 (CN=1), -1.5 to +1.5 (CN=2), +1.5 to +2.5 (CN=3), >+2.5 (CN=4+)
-- SMN1 homozygous deletion (CN=0) indicates potential SMA affected status
-- SMN1 heterozygous deletion (CN=1) indicates SMA carrier status
+POPULATION EVIDENCE
+===================
+ClinVar Integration: $([ -f "$RESULTS_DIR/population_cache/clinvar_SMN1.json" ] && echo "Updated" || echo "Not available")
+Population Frequencies: $([ -f "$RESULTS_DIR/population_cache/population_frequencies.json" ] && echo "Available" || echo "Not available")
+Literature Links: Integrated in individual reports
+
+OUTPUT FILES
+============
+Individual Reports: $RESULTS_DIR/reports/SAMPLE_ID/
+  - SAMPLE_ID_report.txt (detailed text report)
+  - SAMPLE_ID_report.html (interactive HTML with evidence)
+  - SAMPLE_ID_data.json (structured analysis data)
+
+Batch Reports: $RESULTS_DIR/
+  - batch_summary_${PIPELINE_TIMESTAMP}.tsv (tabular summary)
+  - batch_summary_${PIPELINE_TIMESTAMP}.html (interactive dashboard)
+
+Analysis Data:
+  - $RESULTS_DIR/cnv_calls/smn_copy_numbers.txt (primary CNV calls)
+  - $RESULTS_DIR/normalized/z_scores_optimized.txt (normalized data)
+  - $RESULTS_DIR/thresholds/ (adaptive threshold versions)
+
+RECOMMENDATIONS FOR NEXT STEPS
+===============================
+$(if [ "$(grep -c "AFFECTED" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")" -gt 0 ]; then
+    echo "1. URGENT: Review samples with AFFECTED status for immediate clinical action"
+fi)
+$(if [ "$(grep -c "CARRIER" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")" -gt 0 ]; then
+    echo "2. IMPORTANT: Genetic counseling recommended for carrier samples"
+fi)
+$(if [ "$(grep -c "FAIL" "$RESULTS_DIR/reports"/*/*.txt 2>/dev/null || echo "0")" -gt 0 ]; then
+    echo "3. QUALITY: Consider repeat testing for failed quality control samples"
+fi)
+4. CONFIRMATION: MLPA or qPCR confirmation recommended for actionable findings
+5. FAMILY: Consider cascade testing for at-risk family members
+
+CLINICAL DISCLAIMERS
+====================
+- This analysis is for research and clinical decision support
+- Confirmatory testing with validated clinical methods is recommended
+- Genetic counseling should be provided for actionable findings
+- Clinical correlation is essential for interpretation
+
+For detailed analysis results, see individual sample reports in:
+$RESULTS_DIR/reports/
+
+For interactive batch overview, open:
+$RESULTS_DIR/batch_summary_${PIPELINE_TIMESTAMP}.html
 EOF
 
-    print_success "Pipeline summary created: $summary_file"
-}
-
-# Function to show usage
-show_usage() {
-    cat << EOF
-SMN CNV Detection Pipeline
-
-Usage: $0 <input_bam_dir> [OPTIONS]
-
-REQUIRED:
-    input_bam_dir       Directory containing BAM files to analyze
-
-OPTIONS:
-    --config DIR        Configuration directory (default: $CONFIG_DIR)
-    --results DIR       Results directory (default: $RESULTS_DIR)
-    --sample-type TYPE  Sample type: reference, test, or auto (default: auto)
-    --skip-plots        Skip generating plots to speed up analysis
-    --verbose           Enable verbose output
-    --help              Show this help message
-
-DESCRIPTION:
-    This pipeline detects copy number variations (CNVs) in SMN1 and SMN2 genes
-    from whole exome sequencing (WES) data. It processes BAM files through
-    depth extraction, coverage normalization, and copy number estimation.
-
-REQUIREMENTS:
-    - samtools
-    - python3 with pandas, numpy, matplotlib, seaborn, scipy
-
-SAMPLE TYPE AUTO-DETECTION:
-    When --sample-type is set to 'auto' (default), the pipeline will:
-    - Classify samples with 'ref', 'control', or 'normal' in their filename as reference
-    - Classify all other samples as test samples
-    - You can override this by specifying --sample-type reference or --sample-type test
-
-EXAMPLES:
-    # Basic usage with auto-detection
-    $0 /path/to/bam/files/
+    log_success "Pipeline summary created: $summary_file"
     
-    # All samples are reference samples
-    $0 /path/to/bam/files/ --sample-type reference
+    # Display key findings
+    echo ""
+    log_header "PIPELINE EXECUTION COMPLETED"
+    echo ""
+    log_info "Runtime: $runtime"
+    log_info "Total samples processed: $(find "$RESULTS_DIR/reports" -name "*_report.html" | wc -l)"
     
-    # Custom output directory
-    $0 /path/to/bam/files/ --results /custom/output/dir
+    local affected=$(grep -c "AFFECTED" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
+    local carriers=$(grep -c "CARRIER" "$RESULTS_DIR/cnv_calls/smn_copy_numbers.txt" 2>/dev/null || echo "0")
     
-    # Fast analysis without plots
-    $0 /path/to/bam/files/ --skip-plots
-
-OUTPUT:
-    Results will be saved in $RESULTS_DIR with the following structure:
-    - depth/: Read depth files
-    - normalized/: Z-scores and reference statistics
-    - cnv_calls/: Copy number estimates
-    - reports/: Per-sample HTML/JSON reports
-EOF
+    if [ "$affected" -gt 0 ]; then
+        log_warning "CRITICAL FINDINGS: $affected potential SMA-affected samples"
+    fi
+    
+    if [ "$carriers" -gt 0 ]; then
+        log_info "CLINICAL NOTE: $carriers SMA carrier samples detected"
+    fi
+    
+    echo ""
+    log_success "Results available in: $RESULTS_DIR"
+    log_info "View batch summary: $RESULTS_DIR/batch_summary_${PIPELINE_TIMESTAMP}.html"
+    log_info "Individual reports: $RESULTS_DIR/reports/SAMPLE_ID/"
+    echo ""
 }
 
 # Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --help)
-            show_usage
-            exit 0
-            ;;
-        --config)
-            CONFIG_DIR="$2"
-            BED_FILE="$CONFIG_DIR/smn_exons.bed"
-            SNP_FILE="$CONFIG_DIR/discriminating_snps.txt"
-            shift 2
-            ;;
-        --results)
-            RESULTS_DIR="$2"
-            LOG_DIR="$RESULTS_DIR/../logs"
-            shift 2
-            ;;
-        --sample-type)
-            SAMPLE_TYPE="$2"
-            if [[ ! "$SAMPLE_TYPE" =~ ^(reference|test|auto)$ ]]; then
-                print_error "Invalid sample type: $SAMPLE_TYPE. Must be 'reference', 'test', or 'auto'"
-                exit 1
-            fi
-            shift 2
-            ;;
-        --skip-plots)
-            SKIP_PLOTS=true
-            shift
-            ;;
-        --verbose)
-            VERBOSE=true
-            shift
-            ;;
-        -*)
-            print_error "Unknown option: $1"
-            show_usage
-            exit 1
-            ;;
-        *)
-            if [ -z "$INPUT_BAM_DIR" ]; then
-                INPUT_BAM_DIR="$1"
-            else
-                print_error "Multiple input directories specified"
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h)
+                show_usage
+                exit 0
+                ;;
+            --config)
+                CONFIG_DIR="$2"
+                BED_FILE="$CONFIG_DIR/smn_exons_critical.bed"
+                SNP_FILE="$CONFIG_DIR/discriminating_snps.txt"
+                MLPA_TRAINING_FILE="$CONFIG_DIR/mlpa_training_template.txt"
+                shift 2
+                ;;
+            --results)
+                RESULTS_DIR="$2"
+                shift 2
+                ;;
+            --mlpa-file)
+                MLPA_TRAINING_FILE="$2"
+                shift 2
+                ;;
+            --sample-type)
+                SAMPLE_TYPE="$2"
+                if [[ ! "$SAMPLE_TYPE" =~ ^(reference|test|auto)$ ]]; then
+                    log_error "Invalid sample type: $SAMPLE_TYPE"
+                    exit 1
+                fi
+                shift 2
+                ;;
+            --retrain-thresholds)
+                FORCE_THRESHOLD_RETRAIN=true
+                shift
+                ;;
+            --update-population)
+                POPULATION_UPDATE=true
+                shift
+                ;;
+            --skip-plots)
+                SKIP_PLOTS=true
+                shift
+                ;;
+            --verbose)
+                VERBOSE=true
+                set -x
+                shift
+                ;;
+            -*)
+                log_error "Unknown option: $1"
                 show_usage
                 exit 1
-            fi
-            shift
-            ;;
-    esac
-done
-
-# Check if input directory was provided
-if [ -z "$INPUT_BAM_DIR" ]; then
-    print_error "Input BAM directory is required"
-    show_usage
-    exit 1
-fi
+                ;;
+            *)
+                if [ -z "$INPUT_BAM_DIR" ]; then
+                    INPUT_BAM_DIR="$1"
+                else
+                    log_error "Multiple input directories specified"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$INPUT_BAM_DIR" ]; then
+        log_error "Input BAM directory is required"
+        show_usage
+        exit 1
+    fi
+}
 
 # Main pipeline execution
 main() {
-    print_info "Starting SMN CNV Detection Pipeline"
-    print_info "Input BAM directory: $INPUT_BAM_DIR"
-    print_info "Configuration directory: $CONFIG_DIR"
-    print_info "Results directory: $RESULTS_DIR"
-    print_info "Sample type: $SAMPLE_TYPE"
+    # Record start time
+    echo "$(date +%s)" > "$RESULTS_DIR/.pipeline_start_time"
     
-    # Pre-flight checks
-    check_dependencies
-    validate_config
-    setup_directories
+    log_header "SMN CNV Detection Pipeline v${PIPELINE_VERSION}"
+    log_info "Optimized for SMA (Spinal Muscular Atrophy) Analysis"
+    log_info "Focus: SMN1/SMN2 exons 7&8 with population evidence integration"
+    echo ""
+    
+    log_info "Input BAM directory: $INPUT_BAM_DIR"
+    log_info "Results directory: $RESULTS_DIR"
+    log_info "Sample type: $SAMPLE_TYPE"
+    log_info "MLPA training file: $([ -f "$MLPA_TRAINING_FILE" ] && echo "$MLPA_TRAINING_FILE" || echo "Not provided")"
+    echo ""
     
     # Execute pipeline steps
-    local start_time=$(date +%s)
+    validate_environment
+    initialize_pipeline
+    extract_smn_depth
+    normalize_coverage_mlpa  
+    estimate_copy_numbers
+    generate_enhanced_reports
+    validate_results
+    create_pipeline_summary
     
-    run_depth_extraction
-    run_coverage_calculation
-    run_allele_counting
-    run_normalization
-    run_copy_number_estimation
-    run_report_generation
+    # Cleanup
+    rm -f "$RESULTS_DIR/.pipeline_start_time"
     
-    # Create summary
-    create_summary
-    
-    local end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-    
-    print_success "Pipeline completed successfully!"
-    print_info "Total runtime: ${duration} seconds"
-    print_info "Results available in: $RESULTS_DIR"
-    
-    # Show quick results summary
-    if [ -f "$RESULTS_DIR/cnv_calls/copy_numbers.txt" ]; then
-        print_info "Quick Summary:"
-        python3 -c "
-import pandas as pd
-try:
-    df = pd.read_csv('$RESULTS_DIR/cnv_calls/copy_numbers.txt', sep='\t')
-    samples = df['sample_id'].unique()
-    print(f'  Analyzed {len(samples)} samples')
-    
-    # SMN1 copy number distribution
-    smn1_data = df[df['exon'].str.contains('SMN1')]
-    if not smn1_data.empty:
-        cn_counts = smn1_data['copy_number'].value_counts().sort_index()
-        print('  SMN1 copy number distribution:')
-        for cn, count in cn_counts.items():
-            print(f'    CN={cn}: {count} samples')
-except Exception as e:
-    print(f'  Could not generate quick summary: {e}')
-"
-    fi
-    
-    print_info "View individual reports in: $RESULTS_DIR/reports/"
+    log_success "SMN CNV Detection Pipeline completed successfully!"
 }
 
-# Run main function
-main "$@"
+# Script entry point
+parse_arguments "$@"
+main
